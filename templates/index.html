@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VPIP Tracker</title>
+    <script>
+        function updateHands() {
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            var handsDealt = parseInt(handsDealtElement.innerText);
+            var handsPlayed = parseInt(handsPlayedElement.innerText);
+            if (!isNaN(handsDealt) && !isNaN(handsPlayed) && handsDealt > 0) {
+                var vpip = (handsPlayed / handsDealt) * 100;
+                document.getElementById('vpip').innerText = 'VPIP: ' + vpip.toFixed(2) + '%';
+            } else {
+                document.getElementById('vpip').innerText = 'VPIP: N/A';
+            }
+        }
+
+        function addHand() {
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            var handsDealt = parseInt(handsDealtElement.innerText);
+            var handsPlayed = parseInt(handsPlayedElement.innerText);
+            if (!isNaN(handsDealt) && !isNaN(handsPlayed)) {
+                handsDealt++;
+                handsDealtElement.innerText = handsDealt;
+                handsPlayedElement.innerText = handsPlayed;
+            }
+            updateHands();
+        }
+
+        function playHand() {
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayed = parseInt(handsPlayedElement.innerText);
+            var handsDealt = parseInt(handsDealtElement.innerText);
+            if (!isNaN(handsPlayed)) {
+                handsPlayed++;
+                handsDealt++;
+                handsPlayedElement.innerText = handsPlayed;
+                handsDealtElement.innerText = handsDealt;
+            }
+            updateHands();
+        }
+
+        function calculateVpip() {
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            var handsDealt = parseInt(handsDealtElement.innerText);
+            var handsPlayed = parseInt(handsPlayedElement.innerText);
+            if (!isNaN(handsDealt) && !isNaN(handsPlayed) && handsDealt > 0) {
+                var vpip = (handsPlayed / handsDealt) * 100;
+                alert('Current VPIP: ' + vpip.toFixed(2) + '%');
+            } else {
+                alert('Invalid input. Please enter a number.');
+            }
+        }
+
+        function clearVpip() {
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            handsDealtElement.innerText = '0';
+            handsPlayedElement.innerText = '0';
+            updateHands();
+        }
+
+        function saveSession() {
+            var handsDealtInput = document.getElementById('handsDealt');
+            var handsPlayedInput = document.getElementById('handsPlayed');
+            var handsDealt = parseInt(handsDealtInput.innerText) || 0;
+            var handsPlayed = parseInt(handsPlayedInput.innerText) || 0;
+            var session = {
+                handsDealt: handsDealt,
+                handsPlayed: handsPlayed,
+            };
+            var sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+            sessions.push(session);
+            localStorage.setItem('sessions', JSON.stringify(sessions));
+            displaySessions();
+        }
+
+        function displayHands() {
+            var handsDealtElement = document.getElementById('handsDealt');
+            var handsPlayedElement = document.getElementById('handsPlayed');
+            var handsDealt = parseInt(localStorage.getItem('handsDealt')) || 0;
+            var handsPlayed = parseInt(localStorage.getItem('handsPlayed')) || 0;
+            handsDealtElement.innerText = handsDealt;
+            handsPlayedElement.innerText = handsPlayed;
+            updateHands();
+        }
+
+        function displaySessions() {
+            var sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+            var sessionsList = document.getElementById('sessions');
+            sessionsList.innerHTML = '';
+            sessions.forEach(function(session, index) {
+                var listItem = document.createElement('li');
+                listItem.innerText = 'Session ' + (index + 1) + ': Hands Dealt - ' + session.handsDealt + ', Hands Played - ' + session.handsPlayed;
+                
+                var vpip = (session.handsPlayed / session.handsDealt) * 100;
+                var vpipText = document.createElement('span');
+                vpipText.innerText = ' VPIP: ' + vpip.toFixed(2) + '%';
+                listItem.appendChild(vpipText);
+                
+                var editButton = document.createElement('button');
+                editButton.innerText = 'Edit';
+                editButton.onclick = function() {
+                    editSession(index);
+                };
+                listItem.appendChild(editButton);
+                sessionsList.appendChild(listItem);
+            });
+        }
+
+        function editSession(index) {
+            var sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+            var session = sessions[index];
+            document.getElementById('newHandsDealt').value = session.handsDealt;
+            document.getElementById('newHandsPlayed').value = session.handsPlayed;
+            document.getElementById('editSessionModal').style.display = 'block';
+            document.getElementById('saveEditedSession').onclick = function() {
+                saveEditedSession(index);
+            };
+        }
+
+        function saveEditedSession(index) {
+            var sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+            var session = sessions[index];
+            session.handsDealt = document.getElementById('newHandsDealt').value;
+            session.handsPlayed = document.getElementById('newHandsPlayed').value;
+            sessions[index] = session;
+            localStorage.setItem('sessions', JSON.stringify(sessions));
+            displaySessions();
+            closeEditSessionModal();
+        }
+
+        function closeEditSessionModal() {
+            document.getElementById('editSessionModal').style.display = 'none';
+        }
+
+        function clearSessions() {
+            localStorage.removeItem('sessions');
+            displaySessions();
+        }
+
+        window.onload = function () {
+            displayHands();
+            displaySessions();
+        }
+    </script>
+</head>
+<body>
+    <button onclick="clearSessions()">Clear All Sessions</button>
+    <button onclick="addHand()">Add Hand Dealt</button>
+    <button onclick="playHand()">Play Hand</button>
+    <button onclick="calculateVpip()">Show Current VPIP</button>
+    <button onclick="clearVpip()">Clear VPIP</button>
+    <button onclick="saveSession()">Save Session</button>
+    <p>Hands Dealt: <span id="handsDealt"></span></p>
+    <p>Hands Played: <span id="handsPlayed"></span></p>
+    <p id="vpip"></p>
+    <ul id="sessions"></ul>
+    <div id="editSessionModal" style="display: none;">
+        <h2>Edit Session</h2>
+        <label for="newHandsDealt">New Hands Dealt:</label>
+        <input type="number" id="newHandsDealt">
+        <label for="newHandsPlayed">New Hands Played:</label>
+        <input type="number" id="newHandsPlayed">
+        <button onclick="saveEditedSession()">Save</button>
+        <button onclick="closeEditSessionModal()">Cancel</button>
+    </div>
+</body>
+</html>
