@@ -7,42 +7,39 @@
     <style>
         /* Add mobile-specific styles here */
         @media (max-width: 1440px) {
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                margin: 0;
-                padding: 0;
-                color: #333;
-            }
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        color: #333;
+    }
+    button {
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        padding: 10px 20px;
+        font-size: 18px;
+        margin: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    button:hover {
+        background-color: #2980b9;
+    }
+    button:active {
+        background-color: #3498db;
+        box-shadow: 0 5px #666;
+        transform: translateY(4px);
+    }
+    #app {
+        width: 90%;
+        margin: 0 auto;
+        padding: 20px;
+    }
+}
 
-            button {
-                background-color: #3498db;
-                color: #fff;
-                border: none;
-                border-radius: 20px;
-                padding: 10px 20px;
-                font-size: 18px;
-                margin: 10px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
-
-            button:hover {
-                background-color: #2980b9;
-            }
-
-            button:active {
-                background-color: #3498db;
-                box-shadow: 0 5px #666;
-                transform: translateY(4px);
-            }
-
-            #app {
-                width: 90%;
-                margin: 0 auto;
-                padding: 20px;
-            }
-        }
     </style>
 </head>
 
