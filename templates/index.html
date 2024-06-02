@@ -1,9 +1,51 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>VPIP Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <style>
+        /* Add mobile-specific styles here */
+        @media (max-width: 600px) {
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+                color: #333;
+            }
+
+            button {
+                background-color: #3498db;
+                color: #fff;
+                border: none;
+                border-radius: 50px;
+                padding: 10px 20px;
+                font-size: 18px;
+                margin: 10px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+
+            button:hover {
+                background-color: #2980b9;
+            }
+
+            button:active {
+                background-color: #3498db;
+                box-shadow: 0 5px #666;
+                transform: translateY(4px);
+            }
+
+            #app {
+                width: 90%;
+                margin: 0 auto;
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
+
 <body>
     <div id="app">
         <button @click="clearSessions">Clear All Sessions</button>
@@ -17,7 +59,8 @@
         <p id="vpip">{{ vpip }}</p>
         <ul>
             <li v-for="(session, index) in sessions" :key="index">
-                Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed }}
+                Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed
+                }}
                 VPIP: {{ calculateVpip(session) }}%
                 <button @click="editSession(index)">Edit</button>
             </li>
@@ -114,4 +157,5 @@
         });
     </script>
 </body>
+
 </html>
