@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>VPIP Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
@@ -13,8 +12,10 @@
         margin: 0;
         padding: 0;
         color: #333;
-        font-size: 25px;
     }
+    ul li {
+            font-size: 25px;
+        }
     button {
         background-color: #3498db;
         color: #fff;
@@ -86,17 +87,23 @@
                 showEditModal: false
             },
             methods: {
+                saveToLocalStorage() {
+                    localStorage.setItem('sessions', JSON.stringify(this.sessions));
+                },
                 clearSessions() {
                     this.sessions = [];
+                    this.saveToLocalStorage();
                 },
                 addHand() {
                     this.handsDealt++;
                     this.updateHands();
+                    this.saveToLocalStorage();
                 },
                 playHand() {
                     this.handsPlayed++;
                     this.handsDealt++;
                     this.updateHands();
+                    this.saveToLocalStorage();
                 },
                 calculateVpip(session) {
                     if (session.handsDealt > 0) {
@@ -109,6 +116,7 @@
                     this.handsDealt = 0;
                     this.handsPlayed = 0;
                     this.updateHands();
+                    this.saveToLocalStorage();
                 },
                 saveSession() {
                     const session = {
@@ -117,6 +125,7 @@
                     };
                     this.sessions.push(session);
                     this.displaySessions();
+                    this.saveToLocalStorage();
                 },
                 displaySessions() {
                     this.sessions.forEach((session, index) => {
@@ -136,6 +145,7 @@
                     session.handsPlayed = this.newHandsPlayed;
                     this.displaySessions();
                     this.closeEditSessionModal();
+                    this.saveToLocalStorage();
                 },
                 closeEditSessionModal() {
                     this.showEditModal = false;
@@ -149,6 +159,10 @@
                 }
             },
             mounted() {
+                const sessions = localStorage.getItem('sessions');
+                if (sessions) {
+                    this.sessions = JSON.parse(sessions);
+                }
                 this.displaySessions();
             }
         });
