@@ -70,6 +70,7 @@
                 VPIP: {{ calculateVpip(session) }}%
                 Buyin: {{ session.buyin }}
                 Ending Stack: {{ session.endingStack }}
+                Saved Date: {{ session.savedDate }}
                 <button @click="editSession(index)">Edit</button>
             </li>
         </ul>
@@ -146,6 +147,7 @@
                 },
                 saveSession() {
                     const sessionCopy = JSON.parse(JSON.stringify(this.currentSession));
+                    sessionCopy.savedDate = new Date().toLocaleString(); // Add the current date to the session
                     this.sessions.push(sessionCopy);
                     this.displaySessions();
                     this.saveToLocalStorage();
