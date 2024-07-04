@@ -182,8 +182,9 @@
                 },
                 closeEditSessionModal() {
                     this.showEditModal = false;
-                },
-                mounted() {
+                }
+            },
+            mounted() {
                     const sessions = localStorage.getItem('sessions');
                     if (sessions) {
                         this.sessions = JSON.parse(sessions);
@@ -194,7 +195,7 @@
                     }
                     this.displaySessions();
                 }
-            }
+
         });
     </script>
 </body>
