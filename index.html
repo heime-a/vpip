@@ -1,47 +1,52 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>VPIP Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <style>
         /* Add mobile-specific styles here */
         @media (max-width: 1440px) {
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f4f4;
-        margin: 0;
-        padding: 0;
-        color: #333;
-    }
-    ul li {
-            font-size: 25px;
-        }
-    button {
-        background-color: #3498db;
-        color: #fff;
-        border: none;
-        border-radius: 20px;
-        padding: 10px 20px;
-        font-size: 36px;
-        margin: 10px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-    button:hover {
-        background-color: #2980b9;
-    }
-    button:active {
-        background-color: #3498db;
-        box-shadow: 0 5px #666;
-        transform: translateY(4px);
-    }
-    #app {
-        width: 90%;
-        margin: 0 auto;
-        padding: 20px;
-    }
-}
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+                color: #333;
+            }
 
+            ul li {
+                font-size: 25px;
+            }
+
+            button {
+                background-color: #3498db;
+                color: #fff;
+                border: none;
+                border-radius: 20px;
+                padding: 10px 20px;
+                font-size: 36px;
+                margin: 10px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+
+            button:hover {
+                background-color: #2980b9;
+            }
+
+            button:active {
+                background-color: #3498db;
+                box-shadow: 0 5px #666;
+                transform: translateY(4px);
+            }
+
+            #app {
+                width: 90%;
+                margin: 0 auto;
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 
@@ -52,9 +57,9 @@
         <button @click="playHand">Play Hand</button>
         <button @click="clearVpip">Clear VPIP</button>
         <button @click="saveSession">Save Session</button>
-        <p>Hands Dealt: <span>{{ handsDealt }}</span></p>
-        <p>Hands Played: <span>{{ handsPlayed }}</span></p>
-        <p id="vpip">{{ vpip }}</p>
+        <p>Hands Dealt: <span>{{ currentSession.handsDealt }}</span></p>
+        <p>Hands Played: <span>{{ currentSession.handsPlayed }}</span></p>
+        <p id="vpip">{{ currentSession.vpip }}</p>
         <ul>
             <li v-for="(session, index) in sessions" :key="index">
                 Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed
@@ -78,9 +83,11 @@
         new Vue({
             el: '#app',
             data: {
-                handsDealt: 0,
-                handsPlayed: 0,
-                vpip: 0,
+                currentSession: {
+                    handsDealt: 0,
+                    handsPlayed: 0,
+                    vpip: 0
+                },
                 sessions: [],
                 newHandsDealt: 0,
                 newHandsPlayed: 0,
@@ -89,19 +96,24 @@
             methods: {
                 saveToLocalStorage() {
                     localStorage.setItem('sessions', JSON.stringify(this.sessions));
+                    localStorage.setItem('currentSession', JSON.stringify(this.currentSession));
+                },
+                updateHands() {
+                    this.currentSession.vpip = this.calculateVpip(this.currentSession);
+                    this.saveToLocalStorage(); // Save session to local storage whenever the current session is updated
                 },
                 clearSessions() {
                     this.sessions = [];
                     this.saveToLocalStorage();
                 },
                 addHand() {
-                    this.handsDealt++;
+                    this.currentSession.handsDealt++;
                     this.updateHands();
                     this.saveToLocalStorage();
                 },
                 playHand() {
-                    this.handsPlayed++;
-                    this.handsDealt++;
+                    this.currentSession.handsPlayed++;
+                    this.currentSession.handsDealt++;
                     this.updateHands();
                     this.saveToLocalStorage();
                 },
@@ -113,17 +125,21 @@
                     }
                 },
                 clearVpip() {
-                    this.handsDealt = 0;
-                    this.handsPlayed = 0;
+                    this.currentSession.handsDealt = 0;
+                    this.currentSession.handsPlayed = 0;
                     this.updateHands();
                     this.saveToLocalStorage();
                 },
+                // Save the current session to the sessions array and display the updated list of sessions
+
                 saveSession() {
-                    const session = {
-                        handsDealt: this.handsDealt,
-                        handsPlayed: this.handsPlayed
-                    };
-                    this.sessions.push(session);
+                    // Create a deep copy of the current session to avoid reference issues
+                    const sessionCopy = JSON.parse(JSON.stringify(this.currentSession));
+
+                    // Push the deep-copied session to the sessions array
+                    this.sessions.push(sessionCopy);
+
+                    // Display the updated list of sessions and save to local storage
                     this.displaySessions();
                     this.saveToLocalStorage();
                 },
@@ -151,17 +167,22 @@
                     this.showEditModal = false;
                 },
                 updateHands() {
-                    if (this.handsDealt > 0) {
-                        this.vpip = ((this.handsPlayed / this.handsDealt) * 100).toFixed(2) + '%';
+                    if (this.currentSession.handsDealt > 0) {
+                        this.currentSession.vpip = ((this.currentSession.handsPlayed / this.currentSession.handsDealt) * 100).toFixed(2) + '%';
                     } else {
-                        this.vpip = 'N/A';
+                        this.currentSession.vpip = 'N/A';
                     }
+                    this.saveToLocalStorage();
                 }
             },
             mounted() {
                 const sessions = localStorage.getItem('sessions');
                 if (sessions) {
                     this.sessions = JSON.parse(sessions);
+                }
+                const currentSession = localStorage.getItem('currentSession');
+                if (currentSession) {
+                    this.currentSession = JSON.parse(currentSession);
                 }
                 this.displaySessions();
             }
