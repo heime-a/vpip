@@ -54,11 +54,11 @@
 
 <body>
     <div id="app">
-        <button @click="clearSessions">Clear All Sessions</button>
-        <button @click="addHand">Add Hand Dealt</button>
+        <button @click="addHand">Deal Hand</button>
         <button @click="playHand">Play Hand</button>
-        <button @click="clearVpip">Clear VPIP</button>
-        <button @click="saveSession">Save Session</button>
+        <button @click="clearVpip">Clear Sess</button>
+        <button @click="saveSession">Save Sess</button>
+        <button @click="clearSessions">Clear All Sessions</button>
         <p>Hands Dealt: <span>{{ currentSession.handsDealt }}</span></p>
         <p>Hands Played: <span>{{ currentSession.handsPlayed }}</span></p>
         <p>Buyin: <input type="number" v-model.number="currentSession.buyin" step="50" min="0" max="9999.99" size="7"></p>
