@@ -40,7 +40,9 @@
                 box-shadow: 0 5px #666;
                 transform: translateY(4px);
             }
-
+            p input[type="number"] {
+                width: 7ch;
+            }
             #app {
                 width: 90%;
                 margin: 0 auto;
@@ -59,9 +61,9 @@
         <button @click="saveSession">Save Session</button>
         <p>Hands Dealt: <span>{{ currentSession.handsDealt }}</span></p>
         <p>Hands Played: <span>{{ currentSession.handsPlayed }}</span></p>
-        <p>Buyin: <input type="number" v-model="currentSession.buyin"></p>
-        <p>Ending Stack: <input type="number" v-model="currentSession.endingStack"></p>
-        <p id="vpip">{{ currentSession.vpip }}</p>
+        <p>Buyin: <input type="number" v-model.number="currentSession.buyin" step="50" min="0" max="9999.99" size="7"></p>
+        <p>Ending Stack: <input type="number" v-model.number="currentSession.endingStack" step="50" min="0" max="9999.99" size="7"></p>
+        <p id="vpip">Current Vpip: {{ currentSession.vpip }}% </p>
         <ul>
             <li v-for="(session, index) in sessions" :key="index">
                 Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed }}
@@ -74,13 +76,13 @@
         <div id="editSessionModal" v-show="showEditModal">
             <h2>Edit Session</h2>
             <label for="newHandsDealt">New Hands Dealt:</label>
-            <input type="number" id="newHandsDealt" v-model="newHandsDealt">
+            <input type="number" id="newHandsDealt" v-model.number="newHandsDealt" step="1" min="0" size="7">
             <label for="newHandsPlayed">New Hands Played:</label>
-            <input type="number" id="newHandsPlayed" v-model="newHandsPlayed">
+            <input type="number" id="newHandsPlayed" v-model.number="newHandsPlayed" step="1" min="0" size="7">
             <label for="newBuyin">New Buyin:</label>
-            <input type="number" id="newBuyin" v-model="newBuyin">
+            <input type="number" id="newBuyin" v-model.number="newBuyin" step="0.01" min="0" max="9999.99" size="7">
             <label for="newEndingStack">New Ending Stack:</label>
-            <input type="number" id="newEndingStack" v-model="newEndingStack">
+            <input type="number" id="newEndingStack" v-model.number="newEndingStack" step="0.01" min="0" max="9999.99" size="7">
             <button @click="saveEditedSession">Save</button>
             <button @click="closeEditSessionModal">Cancel</button>
         </div>
