@@ -59,12 +59,15 @@
         <button @click="saveSession">Save Session</button>
         <p>Hands Dealt: <span>{{ currentSession.handsDealt }}</span></p>
         <p>Hands Played: <span>{{ currentSession.handsPlayed }}</span></p>
+        <p>Buyin: <input type="number" v-model="currentSession.buyin"></p>
+        <p>Ending Stack: <input type="number" v-model="currentSession.endingStack"></p>
         <p id="vpip">{{ currentSession.vpip }}</p>
         <ul>
             <li v-for="(session, index) in sessions" :key="index">
-                Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed
-                }}
+                Session {{ index + 1 }}: Hands Dealt - {{ session.handsDealt }}, Hands Played - {{ session.handsPlayed }}
                 VPIP: {{ calculateVpip(session) }}%
+                Buyin: {{ session.buyin }}
+                Ending Stack: {{ session.endingStack }}
                 <button @click="editSession(index)">Edit</button>
             </li>
         </ul>
@@ -74,6 +77,10 @@
             <input type="number" id="newHandsDealt" v-model="newHandsDealt">
             <label for="newHandsPlayed">New Hands Played:</label>
             <input type="number" id="newHandsPlayed" v-model="newHandsPlayed">
+            <label for="newBuyin">New Buyin:</label>
+            <input type="number" id="newBuyin" v-model="newBuyin">
+            <label for="newEndingStack">New Ending Stack:</label>
+            <input type="number" id="newEndingStack" v-model="newEndingStack">
             <button @click="saveEditedSession">Save</button>
             <button @click="closeEditSessionModal">Cancel</button>
         </div>
@@ -86,12 +93,17 @@
                 currentSession: {
                     handsDealt: 0,
                     handsPlayed: 0,
-                    vpip: 0
+                    vpip: 0,
+                    buyin: 0,
+                    endingStack: 0
                 },
                 sessions: [],
                 newHandsDealt: 0,
                 newHandsPlayed: 0,
-                showEditModal: false
+                newBuyin: 0,
+                newEndingStack: 0,
+                showEditModal: false,
+                saveEditedSessionIndex: null
             },
             methods: {
                 saveToLocalStorage() {
@@ -130,16 +142,9 @@
                     this.updateHands();
                     this.saveToLocalStorage();
                 },
-                // Save the current session to the sessions array and display the updated list of sessions
-
                 saveSession() {
-                    // Create a deep copy of the current session to avoid reference issues
                     const sessionCopy = JSON.parse(JSON.stringify(this.currentSession));
-
-                    // Push the deep-copied session to the sessions array
                     this.sessions.push(sessionCopy);
-
-                    // Display the updated list of sessions and save to local storage
                     this.displaySessions();
                     this.saveToLocalStorage();
                 },
@@ -152,6 +157,8 @@
                     const session = this.sessions[index];
                     this.newHandsDealt = session.handsDealt;
                     this.newHandsPlayed = session.handsPlayed;
+                    this.newBuyin = session.buyin;
+                    this.newEndingStack = session.endingStack;
                     this.showEditModal = true;
                     this.saveEditedSessionIndex = index;
                 },
@@ -159,6 +166,8 @@
                     const session = this.sessions[this.saveEditedSessionIndex];
                     session.handsDealt = this.newHandsDealt;
                     session.handsPlayed = this.newHandsPlayed;
+                    session.buyin = this.newBuyin;
+                    session.endingStack = this.newEndingStack;
                     this.displaySessions();
                     this.closeEditSessionModal();
                     this.saveToLocalStorage();
@@ -166,25 +175,17 @@
                 closeEditSessionModal() {
                     this.showEditModal = false;
                 },
-                updateHands() {
-                    if (this.currentSession.handsDealt > 0) {
-                        this.currentSession.vpip = ((this.currentSession.handsPlayed / this.currentSession.handsDealt) * 100).toFixed(2) + '%';
-                    } else {
-                        this.currentSession.vpip = 'N/A';
+                mounted() {
+                    const sessions = localStorage.getItem('sessions');
+                    if (sessions) {
+                        this.sessions = JSON.parse(sessions);
                     }
-                    this.saveToLocalStorage();
+                    const currentSession = localStorage.getItem('currentSession');
+                    if (currentSession) {
+                        this.currentSession = JSON.parse(currentSession);
+                    }
+                    this.displaySessions();
                 }
-            },
-            mounted() {
-                const sessions = localStorage.getItem('sessions');
-                if (sessions) {
-                    this.sessions = JSON.parse(sessions);
-                }
-                const currentSession = localStorage.getItem('currentSession');
-                if (currentSession) {
-                    this.currentSession = JSON.parse(currentSession);
-                }
-                this.displaySessions();
             }
         });
     </script>
