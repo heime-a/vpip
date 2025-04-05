@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker VPIP & PNL Tracker</title>
+    <style>
+        :root {
+            --primary-color: #005ea8; /* Dark Blue */
+            --secondary-color: #e4e4e4; /* Light Grey */
+            --text-color: #333;
+            --bg-color: #f8f9fa;
+            --success-color: #28a745; /* Green */
+            --danger-color: #dc3545;  /* Red */
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --spacing: 15px;
+            --button-padding: 10px 15px;
+            --border-radius: 5px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: var(--spacing);
+        }
+
+        h1, h2, h3 {
+            margin-bottom: calc(var(--spacing) * 0.8);
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: var(--spacing);
+        }
+
+        .section {
+            margin-bottom: var(--spacing);
+            padding: var(--spacing);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: #fff; /* White background for sections within container */
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Forms and Inputs */
+        .form-group {
+            margin-bottom: var(--spacing);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        /* Hide number input arrows on Chrome/Safari/Edge/Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        /* Hide number input arrows on Firefox */
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+
+
+        /* Buttons */
+        button {
+            padding: var(--button-padding);
+            font-size: 1rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s ease;
+            display: block; /* Make buttons block for consistent width */
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover:not(:disabled) {
+            background-color: #004a85;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px; /* Space between buttons */
+            margin-top: var(--spacing);
+        }
+        .button-group button {
+            flex: 1; /* Make buttons share space equally */
+            margin-top: 0; /* Reset margin from individual button style */
+        }
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+        .btn-danger:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        .btn-success {
+             background-color: var(--success-color);
+        }
+         .btn-success:hover:not(:disabled) {
+             background-color: #218838;
+        }
+         .btn-secondary {
+             background-color: #6c757d;
+         }
+          .btn-secondary:hover:not(:disabled) {
+             background-color: #5a6268;
+         }
+
+        /* Stats Display */
+        .stats-display, .overall-stats {
+            background-color: var(--secondary-color);
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            margin-top: var(--spacing);
+            text-align: center;
+        }
+        .stats-display p, .overall-stats p {
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        .stats-display span, .overall-stats span {
+            font-weight: bold;
+        }
+        .profit { color: var(--success-color); }
+        .loss { color: var(--danger-color); }
+        .neutral { color: var(--text-color); }
+
+        /* History */
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin-top: var(--spacing);
+        }
+        #history-list li {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing);
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap; /* Allow items to wrap on small screens */
+            justify-content: space-between;
+            gap: 10px; /* Space between items in a history entry */
+        }
+         #history-list li > div {
+            flex-basis: calc(50% - 5px); /* Two columns layout, adjust gap */
+            text-align: left; /* Align text left within columns */
+         }
+         /* On very small screens, stack history items */
+         @media (max-width: 480px) {
+              #history-list li > div {
+                 flex-basis: 100%; /* Full width */
+             }
+              #history-list li {
+                 flex-direction: column;
+                 align-items: flex-start;
+             }
+         }
+
+        #history-list li span {
+            font-weight: bold;
+        }
+        .history-pnl {
+             font-size: 1.1rem; /* Make PNL slightly larger */
+         }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Poker Tracker</h1>
+
+        <div class="section" id="session-control">
+            <div id="start-session-form">
+                <h2>Start New Session</h2>
+                <div class="form-group">
+                    <label for="buy-in">Buy-in Amount ($):</label>
+                    <input type="number" id="buy-in" name="buy-in" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="location">Location/Game (Optional):</label>
+                    <input type="text" id="location" name="location" placeholder="e.g., Home Game, Casino 1/2 NL">
+                </div>
+                <button id="start-btn">Start Session</button>
+            </div>
+
+            <div id="active-session" class="hidden">
+                <h2>Active Session</h2>
+                <div class="stats-display" id="current-session-stats">
+                    <p>Hands Played: <span id="current-hands">0</span></p>
+                    <p>VPIP Hands: <span id="current-vpip-hands">0</span></p>
+                    <p>Current VPIP: <span id="current-vpip">0%</span></p>
+                    <p>Buy-in: $<span id="current-buy-in">0.00</span></p>
+                </div>
+
+                <h3>Record Hand (Pre-flop Action):</h3>
+                <div class="button-group">
+                    <button id="vpip-btn" class="btn-success">VPIP (Played Hand)</button>
+                    <button id="fold-btn" class="btn-secondary">Folded Pre-flop</button>
+                </div>
+
+                <hr style="margin: 20px 0;">
+
+                <h3>End Session</h3>
+                <div class="form-group">
+                    <label for="cash-out">Cash-out Amount ($):</label>
+                    <input type="number" id="cash-out" name="cash-out" step="0.01" min="0">
+                </div>
+                <button id="end-btn" class="btn-danger">End Session & Save</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Overall Stats</h2>
+            <div class="overall-stats" id="overall-stats">
+                <p>Total Sessions: <span id="total-sessions">0</span></p>
+                <p>Total PNL: <span id="total-pnl">$0.00</span></p>
+                <p>Overall VPIP: <span id="overall-vpip">0%</span></p>
+            </div>
+        </div>
+
+
+        <div class="section">
+            <h2>Session History</h2>
+            <ul id="history-list">
+                <p id="no-history" style="text-align: center; color: #6c757d;">No sessions recorded yet.</p>
+            </ul>
+             <button id="clear-history-btn" class="btn-danger" style="margin-top: 20px;">Clear All History</button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const startSessionForm = document.getElementById('start-session-form');
+        const activeSessionDiv = document.getElementById('active-session');
+        const buyInInput = document.getElementById('buy-in');
+        const locationInput = document.getElementById('location');
+        const startBtn = document.getElementById('start-btn');
+        const vpipBtn = document.getElementById('vpip-btn');
+        const foldBtn = document.getElementById('fold-btn');
+        const cashOutInput = document.getElementById('cash-out');
+        const endBtn = document.getElementById('end-btn');
+        const currentHandsSpan = document.getElementById('current-hands');
+        const currentVpipHandsSpan = document.getElementById('current-vpip-hands');
+        const currentVpipSpan = document.getElementById('current-vpip');
+        const currentBuyInSpan = document.getElementById('current-buy-in');
+        const totalSessionsSpan = document.getElementById('total-sessions');
+        const totalPnlSpan = document.getElementById('total-pnl');
+        const overallVpipSpan = document.getElementById('overall-vpip');
+        const historyList = document.getElementById('history-list');
+        const noHistoryP = document.getElementById('no-history');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+
+        // --- State Variables ---
+        let sessionHistory = [];
+        let currentSession = null;
+        let isSessionActive = false;
+
+        // --- Utility Functions ---
+        const formatCurrency = (amount) => {
+             const value = parseFloat(amount) || 0;
+             const options = { style: 'currency', currency: 'USD' };
+             return value.toLocaleString('en-US', options);
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+             // Use current time if needed: Remember the current location is Delray Beach, Florida, United States.
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' };
+            return date.toLocaleString('en-US', options);
+        };
+
+        const calculateVpip = (vpipHands, totalHands) => {
+            return totalHands > 0 ? ((vpipHands / totalHands) * 100).toFixed(1) : 0;
+        };
+
+        const getPnlClass = (pnl) => {
+            if (pnl > 0) return 'profit';
+            if (pnl < 0) return 'loss';
+            return 'neutral';
+        };
+
+        // --- Local Storage ---
+        const STORAGE_KEY = 'pokerSessionHistory';
+
+        const saveData = () => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionHistory));
+            } catch (error) {
+                console.error("Error saving data to localStorage:", error);
+                alert("Could not save session data. Local storage might be full or disabled.");
+            }
+        };
+
+        const loadData = () => {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                sessionHistory = data ? JSON.parse(data) : [];
+            } catch (error) {
+                console.error("Error loading data from localStorage:", error);
+                alert("Could not load previous session data. It might be corrupted.");
+                sessionHistory = [];
+            }
+        };
+
+        // --- Rendering Functions ---
+        const renderHistory = () => {
+            historyList.innerHTML = ''; // Clear existing list first
+            if (sessionHistory.length === 0) {
+                historyList.appendChild(noHistoryP);
+                noHistoryP.classList.remove('hidden');
+                clearHistoryBtn.classList.add('hidden'); // Hide clear button if no history
+            } else {
+                noHistoryP.classList.add('hidden');
+                clearHistoryBtn.classList.remove('hidden'); // Show clear button
+
+                // Sort history newest first
+                const sortedHistory = [...sessionHistory].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+                sortedHistory.forEach(session => {
+                    const li = document.createElement('li');
+                    const pnl = session.cashOut - session.buyIn;
+                    const vpip = calculateVpip(session.vpipHands, session.handsPlayed);
+                    const pnlClass = getPnlClass(pnl);
+
+                    li.innerHTML = `
+                        <div><strong>Date:</strong> ${formatDate(session.startTime)}</div>
+                        <div><strong>Location:</strong> ${session.location || 'N/A'}</div>
+                        <div><strong>Buy-in:</strong> ${formatCurrency(session.buyIn)}</div>
+                        <div><strong>Cash-out:</strong> ${formatCurrency(session.cashOut)}</div>
+                        <div class="history-pnl"><strong>PNL:</strong> <span class="${pnlClass}">${formatCurrency(pnl)}</span></div>
+                        <div><strong>VPIP:</strong> ${vpip}% (${session.vpipHands}/${session.handsPlayed} hands)</div>
+                    `;
+                    historyList.appendChild(li);
+                });
+            }
+        };
+
+        const renderOverallStats = () => {
+            let totalPnl = 0;
+            let totalHandsPlayed = 0;
+            let totalVpipHands = 0;
+
+            sessionHistory.forEach(session => {
+                totalPnl += (session.cashOut - session.buyIn);
+                totalHandsPlayed += session.handsPlayed;
+                totalVpipHands += session.vpipHands;
+            });
+
+            const overallVpip = calculateVpip(totalVpipHands, totalHandsPlayed);
+            const pnlClass = getPnlClass(totalPnl);
+
+            totalSessionsSpan.textContent = sessionHistory.length;
+            totalPnlSpan.textContent = formatCurrency(totalPnl);
+            totalPnlSpan.className = pnlClass; // Apply color class
+            overallVpipSpan.textContent = `${overallVpip}%`;
+        };
+
+        const updateCurrentSessionDisplay = () => {
+            if (!isSessionActive || !currentSession) return;
+            currentHandsSpan.textContent = currentSession.handsPlayed;
+            currentVpipHandsSpan.textContent = currentSession.vpipHands;
+            currentVpipSpan.textContent = `${calculateVpip(currentSession.vpipHands, currentSession.handsPlayed)}%`;
+            currentBuyInSpan.textContent = formatCurrency(currentSession.buyIn);
+        };
+
+        const toggleSessionView = (active) => {
+             isSessionActive = active;
+             if (active) {
+                 startSessionForm.classList.add('hidden');
+                 activeSessionDiv.classList.remove('hidden');
+             } else {
+                 startSessionForm.classList.remove('hidden');
+                 activeSessionDiv.classList.add('hidden');
+                 // Clear inputs for next session
+                 buyInInput.value = '';
+                 locationInput.value = '';
+                 cashOutInput.value = '';
+             }
+        };
+
+
+        // --- Event Handlers ---
+        const handleStartSession = () => {
+            const buyIn = parseFloat(buyInInput.value);
+            const location = locationInput.value.trim();
+
+            if (isNaN(buyIn) || buyIn <= 0) {
+                alert('Please enter a valid positive buy-in amount.');
+                return;
+            }
+
+            currentSession = {
+                startTime: new Date().toISOString(), // Store as ISO string for consistency
+                buyIn: buyIn,
+                location: location,
+                handsPlayed: 0,
+                vpipHands: 0,
+                cashOut: 0, // Will be set at the end
+                endTime: null
+            };
+
+            toggleSessionView(true);
+            updateCurrentSessionDisplay(); // Show initial state (0 hands etc)
+            console.log('Session started:', currentSession);
+        };
+
+        const handleRecordHand = (isVpip) => {
+            if (!isSessionActive || !currentSession) return;
+
+            currentSession.handsPlayed++;
+            if (isVpip) {
+                currentSession.vpipHands++;
+            }
+            updateCurrentSessionDisplay();
+            console.log(`Hand recorded: VPIP=${isVpip}, Total Hands=${currentSession.handsPlayed}`);
+        };
+
+        const handleEndSession = () => {
+            const cashOut = parseFloat(cashOutInput.value);
+
+             if (isNaN(cashOut) || cashOut < 0) {
+                alert('Please enter a valid cash-out amount (can be 0).');
+                return;
+            }
+             if (!isSessionActive || !currentSession) return;
+
+
+            currentSession.cashOut = cashOut;
+            currentSession.endTime = new Date().toISOString();
+
+            // Add to history
+            sessionHistory.push(currentSession);
+            saveData();
+
+            // Update UI
+            renderHistory();
+            renderOverallStats();
+            toggleSessionView(false);
+
+            console.log('Session ended:', currentSession);
+            currentSession = null; // Reset current session
+        };
+
+        const handleClearHistory = () => {
+            if (confirm("Are you sure you want to delete ALL session history? This cannot be undone.")) {
+                 sessionHistory = [];
+                 saveData();
+                 renderHistory();
+                 renderOverallStats();
+                 alert("Session history cleared.");
+            }
+        };
+
+
+        // --- Initialization ---
+        const init = () => {
+            loadData();
+            renderHistory();
+            renderOverallStats();
+            toggleSessionView(false); // Start with the 'start session' form visible
+
+            // Add event listeners
+            startBtn.addEventListener('click', handleStartSession);
+            vpipBtn.addEventListener('click', () => handleRecordHand(true));
+            foldBtn.addEventListener('click', () => handleRecordHand(false));
+            endBtn.addEventListener('click', handleEndSession);
+            clearHistoryBtn.addEventListener('click', handleClearHistory);
+
+            console.log("Poker Tracker Initialized");
+        };
+
+        // --- Run Initialization ---
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+
+</body>
+</html>
