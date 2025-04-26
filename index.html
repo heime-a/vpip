@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poker VPIP & PNL Tracker</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         :root {
             --primary-color: #005ea8; /* Dark Blue */
@@ -89,6 +90,10 @@
         /* Hide number input arrows on Firefox */
         input[type=number] {
           -moz-appearance: textfield;
+        }
+        input[type=number] {
+            appearance: textfield;
+            -moz-appearance: textfield;
         }
 
 
@@ -201,37 +206,65 @@
     </style>
 </head>
 <body>
+    <div id="app">
+        <div class="container">
+            <h1>Poker Tracker</h1>
+            
+            <button v-if="hasOldData" @click="importOldData" class="btn-success" style="margin-bottom: 20px;">
+                Import Data from Previous Version
+            </button>
+            
+            <!-- Session Control Component -->
+            <session-control 
+                :is-active="isSessionActive"
+                :current-session="currentSession"
+                @start-session="startSession"
+                @record-hand="recordHand"
+                @end-session="endSession">
+            </session-control>
 
-    <div class="container">
-        <h1>Poker Tracker</h1>
+            <!-- Stats Component -->
+            <stats-display 
+                :session-history="sessionHistory">
+            </stats-display>
 
+            <!-- History Component -->
+            <session-history 
+                :sessions="sessionHistory"
+                @clear-history="clearHistory">
+            </session-history>
+        </div>
+    </div>
+
+    <!-- Component Templates -->
+    <script type="text/x-template" id="session-control-template">
         <div class="section" id="session-control">
-            <div id="start-session-form">
+            <div id="start-session-form" v-if="!isActive">
                 <h2>Start New Session</h2>
                 <div class="form-group">
                     <label for="buy-in">Buy-in Amount ($):</label>
-                    <input type="number" id="buy-in" name="buy-in" step="0.01" min="0" required>
+                    <input type="number" id="buy-in" v-model="buyIn" step="0.01" min="0" required>
                 </div>
                 <div class="form-group">
                     <label for="location">Location/Game (Optional):</label>
-                    <input type="text" id="location" name="location" placeholder="e.g., Home Game, Casino 1/2 NL">
+                    <input type="text" id="location" v-model="location" placeholder="e.g., Home Game, Casino 1/2 NL">
                 </div>
-                <button id="start-btn">Start Session</button>
+                <button @click="handleStart">Start Session</button>
             </div>
 
-            <div id="active-session" class="hidden">
+            <div id="active-session" v-else>
                 <h2>Active Session</h2>
-                <div class="stats-display" id="current-session-stats">
-                    <p>Hands Played: <span id="current-hands">0</span></p>
-                    <p>VPIP Hands: <span id="current-vpip-hands">0</span></p>
-                    <p>Current VPIP: <span id="current-vpip">0%</span></p>
-                    <p>Buy-in: $<span id="current-buy-in">0.00</span></p>
+                <div class="stats-display">
+                    <p>Hands Played: <span>{{ session.handsPlayed }}</span></p>
+                    <p>VPIP Hands: <span>{{ session.vpipHands }}</span></p>
+                    <p>Current VPIP: <span>{{ calculateVpip(session.vpipHands, session.handsPlayed) }}%</span></p>
+                    <p>Buy-in: <span>{{ formatCurrency(session.buyIn) }}</span></p>
                 </div>
 
                 <h3>Record Hand (Pre-flop Action):</h3>
                 <div class="button-group">
-                    <button id="vpip-btn" class="btn-success">VPIP (Played Hand)</button>
-                    <button id="fold-btn" class="btn-secondary">Folded Pre-flop</button>
+                    <button @click="recordHand(true)" class="btn-success">VPIP (Played Hand)</button>
+                    <button @click="recordHand(false)" class="btn-secondary">Folded Pre-flop</button>
                 </div>
 
                 <hr style="margin: 20px 0;">
@@ -239,279 +272,305 @@
                 <h3>End Session</h3>
                 <div class="form-group">
                     <label for="cash-out">Cash-out Amount ($):</label>
-                    <input type="number" id="cash-out" name="cash-out" step="0.01" min="0">
+                    <input type="number" id="cash-out" v-model="cashOut" step="0.01" min="0">
                 </div>
-                <button id="end-btn" class="btn-danger">End Session & Save</button>
+                <button @click="handleEnd" class="btn-danger">End Session & Save</button>
             </div>
         </div>
+    </script>
 
+    <script type="text/x-template" id="stats-display-template">
         <div class="section">
             <h2>Overall Stats</h2>
-            <div class="overall-stats" id="overall-stats">
-                <p>Total Sessions: <span id="total-sessions">0</span></p>
-                <p>Total PNL: <span id="total-pnl">$0.00</span></p>
-                <p>Overall VPIP: <span id="overall-vpip">0%</span></p>
+            <div class="overall-stats">
+                <p>Total Sessions: <span>{{ totalSessions }}</span></p>
+                <p>Total PNL: <span :class="getPnlClass(totalPnl)">{{ formatCurrency(totalPnl) }}</span></p>
+                <p>Overall VPIP: <span>{{ overallVpip }}%</span></p>
             </div>
         </div>
+    </script>
 
-
+    <script type="text/x-template" id="session-history-template">
         <div class="section">
             <h2>Session History</h2>
             <ul id="history-list">
-                <p id="no-history" style="text-align: center; color: #6c757d;">No sessions recorded yet.</p>
+                <p v-if="!sessions.length" style="text-align: center; color: #6c757d;">No sessions recorded yet.</p>
+                <li v-for="session in sortedSessions" :key="session.startTime">
+                    <div><strong>Date:</strong> {{ formatDate(session.startTime) }}</div>
+                    <div><strong>Location:</strong> {{ session.location || 'N/A' }}</div>
+                    <div><strong>Buy-in:</strong> {{ formatCurrency(session.buyIn) }}</div>
+                    <div><strong>Cash-out:</strong> {{ formatCurrency(session.cashOut) }}</div>
+                    <div class="history-pnl">
+                        <strong>PNL:</strong> 
+                        <span :class="getPnlClass(session.cashOut - session.buyIn)">
+                            {{ formatCurrency(session.cashOut - session.buyIn) }}
+                        </span>
+                    </div>
+                    <div>
+                        <strong>VPIP:</strong> {{ calculateVpip(session.vpipHands, session.handsPlayed) }}% 
+                        ({{ session.vpipHands }}/{{ session.handsPlayed }} hands)
+                    </div>
+                </li>
             </ul>
-             <button id="clear-history-btn" class="btn-danger" style="margin-top: 20px;">Clear All History</button>
+            <button v-if="sessions.length" @click="clearHistory" class="btn-danger">Clear All History</button>
         </div>
-
-    </div>
-
-    <script>
-        // --- DOM Elements ---
-        const startSessionForm = document.getElementById('start-session-form');
-        const activeSessionDiv = document.getElementById('active-session');
-        const buyInInput = document.getElementById('buy-in');
-        const locationInput = document.getElementById('location');
-        const startBtn = document.getElementById('start-btn');
-        const vpipBtn = document.getElementById('vpip-btn');
-        const foldBtn = document.getElementById('fold-btn');
-        const cashOutInput = document.getElementById('cash-out');
-        const endBtn = document.getElementById('end-btn');
-        const currentHandsSpan = document.getElementById('current-hands');
-        const currentVpipHandsSpan = document.getElementById('current-vpip-hands');
-        const currentVpipSpan = document.getElementById('current-vpip');
-        const currentBuyInSpan = document.getElementById('current-buy-in');
-        const totalSessionsSpan = document.getElementById('total-sessions');
-        const totalPnlSpan = document.getElementById('total-pnl');
-        const overallVpipSpan = document.getElementById('overall-vpip');
-        const historyList = document.getElementById('history-list');
-        const noHistoryP = document.getElementById('no-history');
-        const clearHistoryBtn = document.getElementById('clear-history-btn');
-
-
-        // --- State Variables ---
-        let sessionHistory = [];
-        let currentSession = null;
-        let isSessionActive = false;
-
-        // --- Utility Functions ---
-        const formatCurrency = (amount) => {
-             const value = parseFloat(amount) || 0;
-             const options = { style: 'currency', currency: 'USD' };
-             return value.toLocaleString('en-US', options);
-        };
-
-        const formatDate = (dateString) => {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-             // Use current time if needed: Remember the current location is Delray Beach, Florida, United States.
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' };
-            return date.toLocaleString('en-US', options);
-        };
-
-        const calculateVpip = (vpipHands, totalHands) => {
-            return totalHands > 0 ? ((vpipHands / totalHands) * 100).toFixed(1) : 0;
-        };
-
-        const getPnlClass = (pnl) => {
-            if (pnl > 0) return 'profit';
-            if (pnl < 0) return 'loss';
-            return 'neutral';
-        };
-
-        // --- Local Storage ---
-        const STORAGE_KEY = 'pokerSessionHistory';
-
-        const saveData = () => {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionHistory));
-            } catch (error) {
-                console.error("Error saving data to localStorage:", error);
-                alert("Could not save session data. Local storage might be full or disabled.");
-            }
-        };
-
-        const loadData = () => {
-            try {
-                const data = localStorage.getItem(STORAGE_KEY);
-                sessionHistory = data ? JSON.parse(data) : [];
-            } catch (error) {
-                console.error("Error loading data from localStorage:", error);
-                alert("Could not load previous session data. It might be corrupted.");
-                sessionHistory = [];
-            }
-        };
-
-        // --- Rendering Functions ---
-        const renderHistory = () => {
-            historyList.innerHTML = ''; // Clear existing list first
-            if (sessionHistory.length === 0) {
-                historyList.appendChild(noHistoryP);
-                noHistoryP.classList.remove('hidden');
-                clearHistoryBtn.classList.add('hidden'); // Hide clear button if no history
-            } else {
-                noHistoryP.classList.add('hidden');
-                clearHistoryBtn.classList.remove('hidden'); // Show clear button
-
-                // Sort history newest first
-                const sortedHistory = [...sessionHistory].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-
-                sortedHistory.forEach(session => {
-                    const li = document.createElement('li');
-                    const pnl = session.cashOut - session.buyIn;
-                    const vpip = calculateVpip(session.vpipHands, session.handsPlayed);
-                    const pnlClass = getPnlClass(pnl);
-
-                    li.innerHTML = `
-                        <div><strong>Date:</strong> ${formatDate(session.startTime)}</div>
-                        <div><strong>Location:</strong> ${session.location || 'N/A'}</div>
-                        <div><strong>Buy-in:</strong> ${formatCurrency(session.buyIn)}</div>
-                        <div><strong>Cash-out:</strong> ${formatCurrency(session.cashOut)}</div>
-                        <div class="history-pnl"><strong>PNL:</strong> <span class="${pnlClass}">${formatCurrency(pnl)}</span></div>
-                        <div><strong>VPIP:</strong> ${vpip}% (${session.vpipHands}/${session.handsPlayed} hands)</div>
-                    `;
-                    historyList.appendChild(li);
-                });
-            }
-        };
-
-        const renderOverallStats = () => {
-            let totalPnl = 0;
-            let totalHandsPlayed = 0;
-            let totalVpipHands = 0;
-
-            sessionHistory.forEach(session => {
-                totalPnl += (session.cashOut - session.buyIn);
-                totalHandsPlayed += session.handsPlayed;
-                totalVpipHands += session.vpipHands;
-            });
-
-            const overallVpip = calculateVpip(totalVpipHands, totalHandsPlayed);
-            const pnlClass = getPnlClass(totalPnl);
-
-            totalSessionsSpan.textContent = sessionHistory.length;
-            totalPnlSpan.textContent = formatCurrency(totalPnl);
-            totalPnlSpan.className = pnlClass; // Apply color class
-            overallVpipSpan.textContent = `${overallVpip}%`;
-        };
-
-        const updateCurrentSessionDisplay = () => {
-            if (!isSessionActive || !currentSession) return;
-            currentHandsSpan.textContent = currentSession.handsPlayed;
-            currentVpipHandsSpan.textContent = currentSession.vpipHands;
-            currentVpipSpan.textContent = `${calculateVpip(currentSession.vpipHands, currentSession.handsPlayed)}%`;
-            currentBuyInSpan.textContent = formatCurrency(currentSession.buyIn);
-        };
-
-        const toggleSessionView = (active) => {
-             isSessionActive = active;
-             if (active) {
-                 startSessionForm.classList.add('hidden');
-                 activeSessionDiv.classList.remove('hidden');
-             } else {
-                 startSessionForm.classList.remove('hidden');
-                 activeSessionDiv.classList.add('hidden');
-                 // Clear inputs for next session
-                 buyInInput.value = '';
-                 locationInput.value = '';
-                 cashOutInput.value = '';
-             }
-        };
-
-
-        // --- Event Handlers ---
-        const handleStartSession = () => {
-            const buyIn = parseFloat(buyInInput.value);
-            const location = locationInput.value.trim();
-
-            if (isNaN(buyIn) || buyIn <= 0) {
-                alert('Please enter a valid positive buy-in amount.');
-                return;
-            }
-
-            currentSession = {
-                startTime: new Date().toISOString(), // Store as ISO string for consistency
-                buyIn: buyIn,
-                location: location,
-                handsPlayed: 0,
-                vpipHands: 0,
-                cashOut: 0, // Will be set at the end
-                endTime: null
-            };
-
-            toggleSessionView(true);
-            updateCurrentSessionDisplay(); // Show initial state (0 hands etc)
-            console.log('Session started:', currentSession);
-        };
-
-        const handleRecordHand = (isVpip) => {
-            if (!isSessionActive || !currentSession) return;
-
-            currentSession.handsPlayed++;
-            if (isVpip) {
-                currentSession.vpipHands++;
-            }
-            updateCurrentSessionDisplay();
-            console.log(`Hand recorded: VPIP=${isVpip}, Total Hands=${currentSession.handsPlayed}`);
-        };
-
-        const handleEndSession = () => {
-            const cashOut = parseFloat(cashOutInput.value);
-
-             if (isNaN(cashOut) || cashOut < 0) {
-                alert('Please enter a valid cash-out amount (can be 0).');
-                return;
-            }
-             if (!isSessionActive || !currentSession) return;
-
-
-            currentSession.cashOut = cashOut;
-            currentSession.endTime = new Date().toISOString();
-
-            // Add to history
-            sessionHistory.push(currentSession);
-            saveData();
-
-            // Update UI
-            renderHistory();
-            renderOverallStats();
-            toggleSessionView(false);
-
-            console.log('Session ended:', currentSession);
-            currentSession = null; // Reset current session
-        };
-
-        const handleClearHistory = () => {
-            if (confirm("Are you sure you want to delete ALL session history? This cannot be undone.")) {
-                 sessionHistory = [];
-                 saveData();
-                 renderHistory();
-                 renderOverallStats();
-                 alert("Session history cleared.");
-            }
-        };
-
-
-        // --- Initialization ---
-        const init = () => {
-            loadData();
-            renderHistory();
-            renderOverallStats();
-            toggleSessionView(false); // Start with the 'start session' form visible
-
-            // Add event listeners
-            startBtn.addEventListener('click', handleStartSession);
-            vpipBtn.addEventListener('click', () => handleRecordHand(true));
-            foldBtn.addEventListener('click', () => handleRecordHand(false));
-            endBtn.addEventListener('click', handleEndSession);
-            clearHistoryBtn.addEventListener('click', handleClearHistory);
-
-            console.log("Poker Tracker Initialized");
-        };
-
-        // --- Run Initialization ---
-        document.addEventListener('DOMContentLoaded', init);
-
     </script>
 
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        // Utility functions
+        const utils = {
+            formatCurrency(amount) {
+                return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            },
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                const options = { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    timeZone: 'America/New_York' 
+                };
+                return date.toLocaleString('en-US', options);
+            },
+            calculateVpip(vpipHands, totalHands) {
+                return totalHands > 0 ? ((vpipHands / totalHands) * 100).toFixed(1) : 0;
+            },
+            getPnlClass(pnl) {
+                return pnl > 0 ? 'profit' : pnl < 0 ? 'loss' : 'neutral';
+            }
+        };
+
+        // Session Control Component
+        const SessionControl = {
+            template: '#session-control-template',
+            props: ['isActive', 'session'],
+            emits: ['start-session', 'record-hand', 'end-session'],
+            setup(props, { emit }) {
+                const buyIn = ref(0);
+                const location = ref('');
+                const cashOut = ref(0);
+
+                const handleStart = () => {
+                    if (buyIn.value <= 0) {
+                        alert('Please enter a valid positive buy-in amount.');
+                        return;
+                    }
+                    emit('start-session', { buyIn: buyIn.value, location: location.value });
+                };
+
+                const handleEnd = () => {
+                    if (cashOut.value < 0) {
+                        alert('Please enter a valid cash-out amount (can be 0).');
+                        return;
+                    }
+                    emit('end-session', cashOut.value);
+                };
+
+                return {
+                    buyIn,
+                    location,
+                    cashOut,
+                    handleStart,
+                    handleEnd,
+                    recordHand: (isVpip) => emit('record-hand', isVpip),
+                    ...utils
+                };
+            }
+        };
+
+        // Stats Display Component
+        const StatsDisplay = {
+            template: '#stats-display-template',
+            props: ['sessionHistory'],
+            setup(props) {
+                const totalSessions = computed(() => props.sessionHistory.length);
+                const totalPnl = computed(() => {
+                    return props.sessionHistory.reduce((sum, session) => 
+                        sum + (session.cashOut - session.buyIn), 0);
+                });
+                const overallVpip = computed(() => {
+                    const totals = props.sessionHistory.reduce((acc, session) => ({
+                        vpipHands: acc.vpipHands + session.vpipHands,
+                        totalHands: acc.totalHands + session.handsPlayed
+                    }), { vpipHands: 0, totalHands: 0 });
+                    return utils.calculateVpip(totals.vpipHands, totals.totalHands);
+                });
+
+                return {
+                    totalSessions,
+                    totalPnl,
+                    overallVpip,
+                    ...utils
+                };
+            }
+        };
+
+        // Session History Component
+        const SessionHistory = {
+            template: '#session-history-template',
+            props: ['sessions'],
+            emits: ['clear-history'],
+            setup(props, { emit }) {
+                const sortedSessions = computed(() => 
+                    [...props.sessions].sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+                );
+
+                const clearHistory = () => {
+                    if (confirm("Are you sure you want to delete ALL session history? This cannot be undone.")) {
+                        emit('clear-history');
+                    }
+                };
+
+                return {
+                    sortedSessions,
+                    clearHistory,
+                    ...utils
+                };
+            }
+        };
+
+        // Main App
+        const app = createApp({
+            components: {
+                SessionControl,
+                StatsDisplay,
+                SessionHistory
+            },
+            setup() {
+                const STORAGE_KEY = 'pokerSessionHistory';
+                const sessionHistory = ref([]);
+                const currentSession = ref(null);
+                const isSessionActive = ref(false);
+                const hasOldData = ref(false);
+
+                // Check for old version data
+                const checkForOldData = () => {
+                    const oldSessions = localStorage.getItem('sessions');
+                    const oldCurrentSession = localStorage.getItem('currentSession');
+                    hasOldData.value = !!(oldSessions || oldCurrentSession);
+                };
+
+                // Import data from old version
+                const importOldData = () => {
+                    const oldSessions = localStorage.getItem('sessions');
+                    const oldCurrentSession = localStorage.getItem('currentSession');
+                    
+                    if (oldSessions) {
+                        const parsedOldSessions = JSON.parse(oldSessions);
+                        // Convert old session format to new format
+                        const convertedSessions = parsedOldSessions.map(session => ({
+                            startTime: session.savedDate ? new Date(session.savedDate).toISOString() : new Date().toISOString(),
+                            buyIn: session.buyin || 0,
+                            location: '',
+                            handsPlayed: session.handsPlayed || 0,
+                            vpipHands: session.handsPlayed || 0,
+                            cashOut: session.endingStack || 0,
+                            endTime: session.savedDate ? new Date(session.savedDate).toISOString() : new Date().toISOString()
+                        }));
+                        sessionHistory.value = [...sessionHistory.value, ...convertedSessions];
+                    }
+
+                    if (oldCurrentSession && !isSessionActive.value) {
+                        const parsedOldSession = JSON.parse(oldCurrentSession);
+                        if (parsedOldSession.handsDealt > 0) {
+                            currentSession.value = {
+                                startTime: new Date().toISOString(),
+                                buyIn: parsedOldSession.buyin || 0,
+                                location: '',
+                                handsPlayed: parsedOldSession.handsPlayed || 0,
+                                vpipHands: parsedOldSession.handsPlayed || 0,
+                                cashOut: parsedOldSession.endingStack || 0,
+                                endTime: null
+                            };
+                            isSessionActive.value = true;
+                        }
+                    }
+
+                    // Clear old data after successful import
+                    localStorage.removeItem('sessions');
+                    localStorage.removeItem('currentSession');
+                    hasOldData.value = false;
+
+                    // Save imported data in new format
+                    saveData();
+                };
+
+                // Load saved data
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    try {
+                        sessionHistory.value = JSON.parse(savedData);
+                    } catch (error) {
+                        console.error("Error loading data:", error);
+                        alert("Could not load previous session data.");
+                    }
+                }
+
+                checkForOldData();
+
+                // Save data helper
+                const saveData = () => {
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionHistory.value));
+                    } catch (error) {
+                        console.error("Error saving data:", error);
+                        alert("Could not save session data.");
+                    }
+                };
+
+                // Event handlers
+                const startSession = ({ buyIn, location }) => {
+                    currentSession.value = {
+                        startTime: new Date().toISOString(),
+                        buyIn,
+                        location,
+                        handsPlayed: 0,
+                        vpipHands: 0,
+                        cashOut: 0,
+                        endTime: null
+                    };
+                    isSessionActive.value = true;
+                };
+
+                const recordHand = (isVpip) => {
+                    if (!currentSession.value) return;
+                    currentSession.value.handsPlayed++;
+                    if (isVpip) currentSession.value.vpipHands++;
+                };
+
+                const endSession = (cashOut) => {
+                    currentSession.value.cashOut = cashOut;
+                    currentSession.value.endTime = new Date().toISOString();
+                    sessionHistory.value.push({ ...currentSession.value });
+                    saveData();
+                    currentSession.value = null;
+                    isSessionActive.value = false;
+                };
+
+                const clearHistory = () => {
+                    sessionHistory.value = [];
+                    saveData();
+                };
+
+                return {
+                    sessionHistory,
+                    currentSession,
+                    isSessionActive,
+                    hasOldData,
+                    importOldData,
+                    startSession,
+                    recordHand,
+                    endSession,
+                    clearHistory
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
 </body>
 </html>
