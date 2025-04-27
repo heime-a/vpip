@@ -203,6 +203,31 @@
         .history-pnl {
              font-size: 1.1rem; /* Make PNL slightly larger */
          }
+
+        .monthly-stats {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .monthly-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .monthly-item {
+            padding: 10px;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+        }
+
+        .session-count {
+            color: #666;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -285,34 +310,21 @@
             <div class="overall-stats">
                 <p>Total Sessions: <span>{{ totalSessions }}</span></p>
                 <p>Total PNL: <span :class="getPnlClass(totalPnl)">{{ formatCurrency(totalPnl) }}</span></p>
+                <p>YTD PNL: <span :class="getPnlClass(ytdPnl)">{{ formatCurrency(ytdPnl) }}</span></p>
+                <p>MTD PNL: <span :class="getPnlClass(mtdPnl)">{{ formatCurrency(mtdPnl) }}</span></p>
                 <p>Overall VPIP: <span>{{ overallVpip }}%</span></p>
             </div>
-        </div>
-    </script>
 
-    <script type="text/x-template" id="session-history-template">
-        <div class="section">
-            <h2>Session History</h2>
-            <ul id="history-list">
-                <p v-if="!sessions.length" style="text-align: center; color: #6c757d;">No sessions recorded yet.</p>
-                <li v-for="session in sortedSessions" :key="session.startTime">
-                    <div><strong>Date:</strong> {{ formatDate(session.startTime) }}</div>
-                    <div><strong>Location:</strong> {{ session.location || 'N/A' }}</div>
-                    <div><strong>Buy-in:</strong> {{ formatCurrency(session.buyIn) }}</div>
-                    <div><strong>Cash-out:</strong> {{ formatCurrency(session.cashOut) }}</div>
-                    <div class="history-pnl">
-                        <strong>PNL:</strong> 
-                        <span :class="getPnlClass(session.cashOut - session.buyIn)">
-                            {{ formatCurrency(session.cashOut - session.buyIn) }}
-                        </span>
+            <div class="monthly-stats" v-if="monthlyPnl.length">
+                <h3>Monthly Performance</h3>
+                <div class="monthly-list">
+                    <div v-for="month in monthlyPnl" :key="month.key" class="monthly-item">
+                        <strong>{{ month.label }}:</strong> 
+                        <span :class="getPnlClass(month.pnl)">{{ formatCurrency(month.pnl) }}</span>
+                        <span class="session-count">({{ month.sessions }} sessions)</span>
                     </div>
-                    <div>
-                        <strong>VPIP:</strong> {{ calculateVpip(session.vpipHands, session.handsPlayed) }}% 
-                        ({{ session.vpipHands }}/{{ session.handsPlayed }} hands)
-                    </div>
-                </li>
-            </ul>
-            <button v-if="sessions.length" @click="clearHistory" class="btn-danger">Clear All History</button>
+                </div>
+            </div>
         </div>
     </script>
 
@@ -391,10 +403,65 @@
             props: ['sessionHistory'],
             setup(props) {
                 const totalSessions = computed(() => props.sessionHistory.length);
+                
                 const totalPnl = computed(() => {
                     return props.sessionHistory.reduce((sum, session) => 
                         sum + (session.cashOut - session.buyIn), 0);
                 });
+
+                const ytdPnl = computed(() => {
+                    const currentYear = new Date().getFullYear();
+                    return props.sessionHistory
+                        .filter(session => new Date(session.startTime).getFullYear() === currentYear)
+                        .reduce((sum, session) => sum + (session.cashOut - session.buyIn), 0);
+                });
+
+                const mtdPnl = computed(() => {
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const currentMonth = now.getMonth();
+                    return props.sessionHistory
+                        .filter(session => {
+                            const sessionDate = new Date(session.startTime);
+                            return sessionDate.getFullYear() === currentYear && 
+                                   sessionDate.getMonth() === currentMonth;
+                        })
+                        .reduce((sum, session) => sum + (session.cashOut - session.buyIn), 0);
+                });
+
+                const monthlyPnl = computed(() => {
+                    const months = {};
+                    
+                    // Group sessions by year-month
+                    props.sessionHistory.forEach(session => {
+                        const date = new Date(session.startTime);
+                        const key = `${date.getFullYear()}-${date.getMonth()}`;
+                        if (!months[key]) {
+                            months[key] = {
+                                key,
+                                year: date.getFullYear(),
+                                month: date.getMonth(),
+                                pnl: 0,
+                                sessions: 0
+                            };
+                        }
+                        months[key].pnl += (session.cashOut - session.buyIn);
+                        months[key].sessions++;
+                    });
+
+                    // Convert to array and sort by date (newest first)
+                    return Object.values(months)
+                        .sort((a, b) => {
+                            if (a.year !== b.year) return b.year - a.year;
+                            return b.month - a.month;
+                        })
+                        .map(month => ({
+                            ...month,
+                            label: new Date(month.year, month.month)
+                                .toLocaleString('en-US', { year: 'numeric', month: 'long' })
+                        }));
+                });
+
                 const overallVpip = computed(() => {
                     const totals = props.sessionHistory.reduce((acc, session) => ({
                         vpipHands: acc.vpipHands + session.vpipHands,
@@ -406,6 +473,9 @@
                 return {
                     totalSessions,
                     totalPnl,
+                    ytdPnl,
+                    mtdPnl,
+                    monthlyPnl,
                     overallVpip,
                     ...utils
                 };
