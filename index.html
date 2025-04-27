@@ -217,7 +217,7 @@
             <!-- Session Control Component -->
             <session-control 
                 :is-active="isSessionActive"
-                :current-session="currentSession"
+                :session="currentSession"
                 @start-session="startSession"
                 @record-hand="recordHand"
                 @end-session="endSession">
@@ -353,6 +353,7 @@
                 const buyIn = ref(0);
                 const location = ref('');
                 const cashOut = ref(0);
+                const currentSession = computed(() => props.session || {});
 
                 const handleStart = () => {
                     if (buyIn.value <= 0) {
@@ -376,8 +377,10 @@
                     cashOut,
                     handleStart,
                     handleEnd,
+                    session: currentSession,
                     recordHand: (isVpip) => emit('record-hand', isVpip),
-                    ...utils
+                    calculateVpip: utils.calculateVpip,
+                    formatCurrency: utils.formatCurrency
                 };
             }
         };
