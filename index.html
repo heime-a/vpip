@@ -228,6 +228,81 @@
             font-size: 0.9em;
             margin-left: 5px;
         }
+
+        .additional-buyins {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+        }
+
+        .additional-buyins h4 {
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .additional-buyins ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .additional-buyins li {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .monthly-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .monthly-item:hover {
+            background-color: #d8d8d8;
+        }
+
+        .monthly-details {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+
+        .monthly-details h4 {
+            margin-bottom: 10px;
+        }
+
+        .session-detail {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .session-detail > div {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .close-details {
+            float: right;
+            padding: 5px 10px;
+            margin-top: -5px;
+            margin-right: -5px;
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        .close-details:hover {
+            color: var(--danger-color);
+        }
     </style>
 </head>
 <body>
@@ -245,7 +320,8 @@
                 :session="currentSession"
                 @start-session="startSession"
                 @record-hand="recordHand"
-                @end-session="endSession">
+                @end-session="endSession"
+                @add-buyin="addBuyIn">
             </session-control>
 
             <!-- Stats Component -->
@@ -283,13 +359,33 @@
                     <p>Hands Played: <span>{{ session.handsPlayed }}</span></p>
                     <p>VPIP Hands: <span>{{ session.vpipHands }}</span></p>
                     <p>Current VPIP: <span>{{ calculateVpip(session.vpipHands, session.handsPlayed) }}%</span></p>
-                    <p>Buy-in: <span>{{ formatCurrency(session.buyIn) }}</span></p>
+                    <p>Initial Buy-in: <span>{{ formatCurrency(session.buyIn) }}</span></p>
+                    <p v-if="session.additionalBuyIns?.length">Additional Buy-ins: <span>{{ formatCurrency(totalAdditionalBuyIns) }}</span></p>
+                    <p>Total Buy-in: <span>{{ formatCurrency(totalBuyIn) }}</span></p>
                 </div>
 
                 <h3>Record Hand (Pre-flop Action):</h3>
                 <div class="button-group">
                     <button @click="recordHand(true)" class="btn-success">VPIP (Played Hand)</button>
                     <button @click="recordHand(false)" class="btn-secondary">Folded Pre-flop</button>
+                </div>
+
+                <hr style="margin: 20px 0;">
+
+                <h3>Additional Buy-in</h3>
+                <div class="form-group">
+                    <label for="additional-buy-in">Amount ($):</label>
+                    <input type="number" id="additional-buy-in" v-model="additionalBuyIn" step="0.01" min="0">
+                    <button @click="handleAdditionalBuyIn" class="btn-primary">Add Buy-in</button>
+                </div>
+
+                <div v-if="session.additionalBuyIns?.length" class="additional-buyins">
+                    <h4>Additional Buy-ins History:</h4>
+                    <ul>
+                        <li v-for="(buyIn, index) in session.additionalBuyIns" :key="index">
+                            {{ formatCurrency(buyIn.amount) }} - {{ formatDate(buyIn.time) }}
+                        </li>
+                    </ul>
                 </div>
 
                 <hr style="margin: 20px 0;">
@@ -318,10 +414,45 @@
             <div class="monthly-stats" v-if="monthlyPnl.length">
                 <h3>Monthly Performance</h3>
                 <div class="monthly-list">
-                    <div v-for="month in monthlyPnl" :key="month.key" class="monthly-item">
+                    <div v-for="month in monthlyPnl" 
+                         :key="month.key" 
+                         class="monthly-item"
+                         @click="showMonthDetails(month)">
                         <strong>{{ month.label }}:</strong> 
                         <span :class="getPnlClass(month.pnl)">{{ formatCurrency(month.pnl) }}</span>
                         <span class="session-count">({{ month.sessions }} sessions)</span>
+                    </div>
+                </div>
+
+                <!-- Monthly Details Panel -->
+                <div v-if="selectedMonth" class="monthly-details">
+                    <button class="close-details" @click="selectedMonth = null">&times;</button>
+                    <h4>{{ selectedMonth.label }} Details</h4>
+                    <div v-for="session in selectedMonth.sessions" 
+                         :key="session.startTime" 
+                         class="session-detail">
+                        <div>
+                            <strong>Date:</strong> {{ formatDate(session.startTime) }}
+                        </div>
+                        <div v-if="session.location">
+                            <strong>Location:</strong> {{ session.location }}
+                        </div>
+                        <div>
+                            <strong>Buy-in:</strong> {{ formatCurrency(session.buyIn) }}
+                        </div>
+                        <div>
+                            <strong>Cash-out:</strong> {{ formatCurrency(session.cashOut) }}
+                        </div>
+                        <div>
+                            <strong>PNL:</strong> 
+                            <span :class="getPnlClass(session.cashOut - session.buyIn)">
+                                {{ formatCurrency(session.cashOut - session.buyIn) }}
+                            </span>
+                        </div>
+                        <div>
+                            <strong>VPIP:</strong> {{ calculateVpip(session.vpipHands, session.handsPlayed) }}%
+                            ({{ session.vpipHands }}/{{ session.handsPlayed }} hands)
+                        </div>
                     </div>
                 </div>
             </div>
@@ -360,19 +491,42 @@
         const SessionControl = {
             template: '#session-control-template',
             props: ['isActive', 'session'],
-            emits: ['start-session', 'record-hand', 'end-session'],
+            emits: ['start-session', 'record-hand', 'end-session', 'add-buyin'],
             setup(props, { emit }) {
                 const buyIn = ref(0);
                 const location = ref('');
                 const cashOut = ref(0);
+                const additionalBuyIn = ref(0);
                 const currentSession = computed(() => props.session || {});
+
+                const totalAdditionalBuyIns = computed(() => {
+                    if (!currentSession.value?.additionalBuyIns) return 0;
+                    return currentSession.value.additionalBuyIns.reduce((sum, buyIn) => sum + buyIn.amount, 0);
+                });
+
+                const totalBuyIn = computed(() => {
+                    return (currentSession.value?.buyIn || 0) + totalAdditionalBuyIns.value;
+                });
 
                 const handleStart = () => {
                     if (buyIn.value <= 0) {
                         alert('Please enter a valid positive buy-in amount.');
                         return;
                     }
-                    emit('start-session', { buyIn: buyIn.value, location: location.value });
+                    emit('start-session', { 
+                        buyIn: buyIn.value, 
+                        location: location.value,
+                        additionalBuyIns: []
+                    });
+                };
+
+                const handleAdditionalBuyIn = () => {
+                    if (additionalBuyIn.value <= 0) {
+                        alert('Please enter a valid positive buy-in amount.');
+                        return;
+                    }
+                    emit('add-buyin', additionalBuyIn.value);
+                    additionalBuyIn.value = 0;
                 };
 
                 const handleEnd = () => {
@@ -387,9 +541,13 @@
                     buyIn,
                     location,
                     cashOut,
+                    additionalBuyIn,
                     handleStart,
                     handleEnd,
+                    handleAdditionalBuyIn,
                     session: currentSession,
+                    totalAdditionalBuyIns,
+                    totalBuyIn,
                     recordHand: (isVpip) => emit('record-hand', isVpip),
                     calculateVpip: utils.calculateVpip,
                     formatCurrency: utils.formatCurrency
@@ -470,6 +628,21 @@
                     return utils.calculateVpip(totals.vpipHands, totals.totalHands);
                 });
 
+                const selectedMonth = ref(null);
+
+                const showMonthDetails = (month) => {
+                    // Get all sessions for the selected month
+                    const monthSessions = props.sessionHistory.filter(session => {
+                        const date = new Date(session.startTime);
+                        return date.getFullYear() === month.year && date.getMonth() === month.month;
+                    }).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+                    selectedMonth.value = {
+                        ...month,
+                        sessions: monthSessions
+                    };
+                };
+
                 return {
                     totalSessions,
                     totalPnl,
@@ -477,6 +650,8 @@
                     mtdPnl,
                     monthlyPnl,
                     overallVpip,
+                    selectedMonth,
+                    showMonthDetails,
                     ...utils
                 };
             }
@@ -604,7 +779,8 @@
                         handsPlayed: 0,
                         vpipHands: 0,
                         cashOut: 0,
-                        endTime: null
+                        endTime: null,
+                        additionalBuyIns: []
                     };
                     isSessionActive.value = true;
                 };
@@ -629,6 +805,17 @@
                     saveData();
                 };
 
+                const addBuyIn = (amount) => {
+                    if (!currentSession.value) return;
+                    if (!currentSession.value.additionalBuyIns) {
+                        currentSession.value.additionalBuyIns = [];
+                    }
+                    currentSession.value.additionalBuyIns.push({
+                        amount,
+                        time: new Date().toISOString()
+                    });
+                };
+
                 return {
                     sessionHistory,
                     currentSession,
@@ -638,7 +825,8 @@
                     startSession,
                     recordHand,
                     endSession,
-                    clearHistory
+                    clearHistory,
+                    addBuyIn
                 };
             }
         });
